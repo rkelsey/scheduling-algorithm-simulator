@@ -65,14 +65,15 @@ public class SchedulingAlgorithmSimulator {
 			line = in.nextLine();
 		} // done reading processes
 
-		in.close();
+		in.close(); // done reading
 		
-		// actually get the joj here
+		// write alg info
 		writer.printf("%d processes%n", pcount);
 		writer.printf("Using %s%n", alg.getName());
 		if (alg == Algorithm.ROUND_ROBIN)
 			writer.printf("Quantum %d%n", quantum);
 
+		// simulation
 		int elapsedTime = 0;
 		Process selected = null;
 		List<Process> loadedProcesses = new ArrayList<Process>();
@@ -82,14 +83,14 @@ public class SchedulingAlgorithmSimulator {
 		for (Process p : processList)
 			processQueue.add(p);
 
+		// while we have time and processes exist
 		while (elapsedTime <= runfor && (!processQueue.isEmpty() || !loadedProcesses.isEmpty())) {
-
 			while (!processQueue.isEmpty() && processQueue.peek().arrival <= elapsedTime)
 				loadedProcesses.add(processQueue.poll());
 
+			// announce arrivals and completions
 			for (int i = 0; i < loadedProcesses.size(); i++) {
 				Process p = loadedProcesses.get(i);
-				// announce arrivals and completion
 				if (p.arrival == elapsedTime) {
 					writer.printf("Time %d: %s arrived%n", elapsedTime, p.name);
 				}
@@ -98,7 +99,7 @@ public class SchedulingAlgorithmSimulator {
 					p.complete = elapsedTime;
 					p.burst = -1;
 					loadedProcesses.remove(p);
-					selected = null;
+					selected = null; // important for detecting idleness
 				}
 			}
 
@@ -108,9 +109,7 @@ public class SchedulingAlgorithmSimulator {
 					Collections.sort(loadedProcesses, (Process p1, Process p2) -> {
 						return Integer.compare(p1.arrival, p2.arrival);
 					});
-					if (selected == null || loadedProcesses.get(0) != selected) {
-						selected = selectFirst(selected, loadedProcesses, elapsedTime);
-					}
+					selected = selectFirst(selected, loadedProcesses, elapsedTime);
 					if (selected != null)
 						writer.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name,
 								selected.burst);
