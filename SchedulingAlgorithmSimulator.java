@@ -1,13 +1,12 @@
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Scanner;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class SchedulingAlgorithmSimulator {
 
@@ -41,12 +40,12 @@ public class SchedulingAlgorithmSimulator {
 
 	}
 
-	public static void main(String[] args) throws FileNotFoundException {
+	public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException {
 		List<Process> processList = new ArrayList<Process>();
-
-		String fileName = "processes.in";
-		Scanner in = new Scanner(new File(fileName));
-
+		
+		Scanner in = new Scanner(new File("processes.in"));
+		PrintWriter writer = new PrintWriter("processes.out", "UTF-8");
+	
 		int pcount = Integer.parseInt(retrieveParam(in.nextLine(), "processcount"));
 		int runfor = Integer.parseInt(retrieveParam(in.nextLine(), "runfor"));
 		Algorithm alg = Algorithm.byAbbreviation(retrieveParam(in.nextLine(), "use"));
@@ -66,11 +65,13 @@ public class SchedulingAlgorithmSimulator {
 			line = in.nextLine();
 		} // done reading processes
 
+		in.close();
+		
 		// actually get the joj here
-		System.out.printf("%d processes%n", pcount);
-		System.out.printf("Using %s%n", alg.getName());
+		writer.printf("%d processes%n", pcount);
+		writer.printf("Using %s%n", alg.getName());
 		if (alg == Algorithm.ROUND_ROBIN)
-			System.out.printf("Quantum %d%n", quantum);
+			writer.printf("Quantum %d%n", quantum);
 
 		int elapsedTime = 0;
 		Process selected = null;
@@ -81,72 +82,60 @@ public class SchedulingAlgorithmSimulator {
 		for (Process p : processList)
 			processQueue.add(p);
 
-		while (!processQueue.isEmpty() || !loadedProcesses.isEmpty()) {
+		while (elapsedTime <= runfor && (!processQueue.isEmpty() || !loadedProcesses.isEmpty())) {
 
 			while (!processQueue.isEmpty() && processQueue.peek().arrival <= elapsedTime)
 				loadedProcesses.add(processQueue.poll());
 
 			for (int i = 0; i < loadedProcesses.size(); i++) {
-				Process p = loadedProcesses.get(0);
+				Process p = loadedProcesses.get(i);
 				// announce arrivals and completion
 				if (p.arrival == elapsedTime) {
-					System.out.printf("Time %d: %s arrived%n", elapsedTime, p.name);
+					writer.printf("Time %d: %s arrived%n", elapsedTime, p.name);
 				}
 				if (p.burst == 0) {
-					System.out.printf("Time %d: %s finished%n", elapsedTime, p.name);
+					writer.printf("Time %d: %s finished%n", elapsedTime, p.name);
 					p.complete = elapsedTime;
 					p.burst = -1;
 					loadedProcesses.remove(p);
+					selected = null;
 				}
 			}
 
-			// current process finished or we haven't started, select a new one
-			if (selected == null || selected.burst <= 0) {
-				switch (alg) {
-				case FIRST_COME_FIRST_SERVED:
+			switch (alg) {
+			case FIRST_COME_FIRST_SERVED:
+				if (selected == null || selected.burst <= 0) {
 					Collections.sort(loadedProcesses, (Process p1, Process p2) -> {
 						return Integer.compare(p1.arrival, p2.arrival);
 					});
-					for (Process p : loadedProcesses) {
-						if (p.arrival <= elapsedTime) {
-							selected = p;
-							System.out.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name,
-									selected.burst);
-							break;
-						}
+					if (selected == null || loadedProcesses.get(0) != selected) {
+						selected = selectFirst(selected, loadedProcesses, elapsedTime);
 					}
-					break;
-				case ROUND_ROBIN:
-					Collections.sort(loadedProcesses, (Process p1, Process p2) -> {
-						return Integer.compare(p2.lastRan, p1.lastRan);
-					});
-					if (elapsedTime % quantum == 0) {
-						for (Process p : loadedProcesses) {
-							if (p.arrival <= elapsedTime) {
-								selected = p;
-								System.out.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name,
-										selected.burst);
-								break;
-							}
-						}
-					}
-					break;
+					if (selected != null)
+						writer.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name,
+								selected.burst);
 				}
-
-			}
-			// handle preemptive algorithm
-			if (alg == Algorithm.SHORTEST_JOB_FIRST) {
+				break;
+			case SHORTEST_JOB_FIRST:
 				Collections.sort(loadedProcesses, (Process p1, Process p2) -> {
 					return Integer.compare(p1.burst, p2.burst);
 				});
-
-				if (!loadedProcesses.isEmpty()) {
-					if (loadedProcesses.get(0) != selected) {
-						selected = loadedProcesses.get(0);
-						System.out.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name,
+				Process previous = selected;
+				selected = selectFirst(selected, loadedProcesses, elapsedTime);
+				if (previous != selected)
+					writer.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name, selected.burst);
+				break;
+			case ROUND_ROBIN:
+				if (selected == null || (elapsedTime - selected.selected) % quantum == 0) {
+					Collections.sort(loadedProcesses, (Process p1, Process p2) -> {
+						return Integer.compare(p1.lastRan, p2.lastRan);
+					});
+					selected = selectFirst(selected, loadedProcesses, elapsedTime);
+					if (selected != null)
+						writer.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name,
 								selected.burst);
-					}
 				}
+				break;
 			}
 
 			// tick.
@@ -156,14 +145,30 @@ public class SchedulingAlgorithmSimulator {
 			if (selected != null) {
 				selected.lastRan = elapsedTime;
 				selected.burst--;
+			} else {
+				writer.printf("Time %d: Idle%n", elapsedTime);
 			}
 			elapsedTime++;
 		}
 
-		System.out.printf("Finished at time %d%n%n", elapsedTime);
+		writer.printf("Finished at time %d%n%n", elapsedTime);
 
 		for (Process p : processList)
-			System.out.printf("%s wait %d turnaround %d%n", p.name, p.wait, p.complete - p.arrival);
+			writer.printf("%s wait %d turnaround %d%n", p.name, p.wait, p.complete - p.arrival);
+		
+		writer.flush();
+		writer.close();
+	}
+
+	private static Process selectFirst(Process selected, List<Process> loadedProcesses, int elapsedTime) {
+		if (!loadedProcesses.isEmpty() && loadedProcesses.get(0) != selected) {
+			Process nextProcess = loadedProcesses.get(0);
+			boolean isNewProcess = (selected == null || selected != nextProcess);
+			selected = nextProcess;
+			if (isNewProcess)
+				selected.selected = elapsedTime;
+		}
+		return selected;
 	}
 
 	static String retrieveParam(String line, String name) {
@@ -177,7 +182,7 @@ public class SchedulingAlgorithmSimulator {
 
 class Process {
 	String name;
-	int arrival, burst, wait, complete, lastRan;
+	int arrival, burst, wait, complete, lastRan, selected;
 
 	Process() {
 		wait = 0;
