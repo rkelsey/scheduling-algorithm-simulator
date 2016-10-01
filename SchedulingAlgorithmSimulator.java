@@ -37,15 +37,14 @@ public class SchedulingAlgorithmSimulator {
 			}
 			return null;
 		}
-
 	}
 
 	public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException {
 		List<Process> processList = new ArrayList<Process>();
-		
+
 		Scanner in = new Scanner(new File("processes.in"));
 		PrintWriter writer = new PrintWriter("processes.out", "UTF-8");
-	
+
 		int pcount = Integer.parseInt(retrieveParam(in.nextLine(), "processcount"));
 		int runfor = Integer.parseInt(retrieveParam(in.nextLine(), "runfor"));
 		Algorithm alg = Algorithm.byAbbreviation(retrieveParam(in.nextLine(), "use"));
@@ -66,12 +65,13 @@ public class SchedulingAlgorithmSimulator {
 		} // done reading processes
 
 		in.close(); // done reading
-		
+
 		// write alg info
 		writer.printf("%d processes%n", pcount);
 		writer.printf("Using %s%n", alg.getName());
 		if (alg == Algorithm.ROUND_ROBIN)
 			writer.printf("Quantum %d%n", quantum);
+		writer.println();
 
 		// simulation
 		int elapsedTime = 0;
@@ -84,7 +84,12 @@ public class SchedulingAlgorithmSimulator {
 			processQueue.add(p);
 
 		// while we have time and processes exist
-		while (elapsedTime <= runfor && (!processQueue.isEmpty() || !loadedProcesses.isEmpty())) {
+		for (; elapsedTime < runfor; elapsedTime++) {
+			if (!(!processQueue.isEmpty() || !loadedProcesses.isEmpty())) {
+				writer.printf("Time %d: Idle%n", elapsedTime);
+				continue;
+			}
+
 			while (!processQueue.isEmpty() && processQueue.peek().arrival <= elapsedTime)
 				loadedProcesses.add(processQueue.poll());
 
@@ -111,8 +116,7 @@ public class SchedulingAlgorithmSimulator {
 					});
 					selected = selectFirst(selected, loadedProcesses, elapsedTime);
 					if (selected != null)
-						writer.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name,
-								selected.burst);
+						writer.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name, selected.burst);
 				}
 				break;
 			case SHORTEST_JOB_FIRST:
@@ -131,8 +135,7 @@ public class SchedulingAlgorithmSimulator {
 					});
 					selected = selectFirst(selected, loadedProcesses, elapsedTime);
 					if (selected != null)
-						writer.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name,
-								selected.burst);
+						writer.printf("Time %d: %s selected (burst %d)%n", elapsedTime, selected.name, selected.burst);
 				}
 				break;
 			}
@@ -147,14 +150,30 @@ public class SchedulingAlgorithmSimulator {
 			} else {
 				writer.printf("Time %d: Idle%n", elapsedTime);
 			}
-			elapsedTime++;
 		}
 
-		writer.printf("Finished at time %d%n%n", elapsedTime);
+		// handle completion during last tick
+		for (int i = 0; i < loadedProcesses.size(); i++) {
+			Process p = loadedProcesses.get(0);
+			if (p.burst == 0) {
+				writer.printf("Time %d: %s finished%n", elapsedTime, p.name);
+				p.complete = elapsedTime;
+				p.burst = -1;
+				loadedProcesses.remove(p);
+				selected = null; // important for detecting idleness
+			}
+		}
 
+		// completion message
+		if (loadedProcesses.isEmpty())
+			writer.printf("Finished at time %d%n%n", elapsedTime);
+		else
+			writer.printf("Ran out of time at time %d%n%n", elapsedTime);
+
+		// wait/turnaround time
 		for (Process p : processList)
 			writer.printf("%s wait %d turnaround %d%n", p.name, p.wait, p.complete - p.arrival);
-		
+
 		writer.flush();
 		writer.close();
 	}
