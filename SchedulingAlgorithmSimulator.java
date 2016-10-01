@@ -7,17 +7,42 @@ import java.util.regex.Pattern;
 
 public class SchedulingAlgorithmSimulator {
 
+	enum Algorithm {
+		FIRST_COME_FIRST_SERVED("fcfs"),
+		SHORTEST_JOB_FIRST("sjf"),
+		ROUND_ROBIN("rr");
+		
+		private final String name;
+		
+		private Algorithm(String name) {
+			this.name = name;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public static Algorithm byName(String name) {
+			for(Algorithm algorithm : values()) {
+				if(name.equals(algorithm.getName()))
+					return algorithm;
+			}
+			return null;
+		}
+	}
+	
 	public static void main(String[] args) throws FileNotFoundException {
 		int pcount, runfor, quantum;
-		String alg;
+		Algorithm alg;
 		ArrayList<Process> processes = new ArrayList<Process>();
+		
 		
 		String fileName = "processes.in";
 		Scanner in = new Scanner(new File(fileName));
 		
 		pcount = Integer.parseInt(retrieveParam(in.nextLine(), "processcount"));
 		runfor = Integer.parseInt(retrieveParam(in.nextLine(), "runfor"));
-		alg = retrieveParam(in.nextLine(), "use");
+		retrieveParam(in.nextLine(), "use");
 		
 		if (alg.equals("rr"))
 			quantum = Integer.parseInt(retrieveParam(in.nextLine(), "quantum"));
@@ -33,7 +58,6 @@ public class SchedulingAlgorithmSimulator {
 			line = in.nextLine();
 		} // done reading processes
 		
-		System.out.println("hi");
 	}
 
 	/**
