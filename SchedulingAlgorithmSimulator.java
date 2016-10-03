@@ -50,11 +50,15 @@ public class SchedulingAlgorithmSimulator {
 		Algorithm alg = Algorithm.byAbbreviation(retrieveParam(in.nextLine(), "use"));
 
 		int quantum = -1;
-		if (alg == Algorithm.ROUND_ROBIN)
-			quantum = Integer.parseInt(retrieveParam(in.nextLine(), "quantum"));
+		String line = in.nextLine(); // either quantum or first process
+
+		// determine what line represents
+		if (line.indexOf(quantum) > -1) {
+			quantum = Integer.parseInt(retrieveParam(line, "quantum"));
+			line = in.nextLine(); // now move to first process
+		} // postcondition: line represents the first process
 
 		// read processes
-		String line = in.nextLine();
 		while (line.indexOf("process") == 0) {
 			Process p = new Process();
 			p.name = retrieveParam(line, "name");
@@ -189,8 +193,23 @@ public class SchedulingAlgorithmSimulator {
 		return selected;
 	}
 
+	/**
+	 * Returns the next "word" (substring surrounded with spaces) following the provided identifier.
+	 * 
+	 * @param line
+	 *            String to extract parameter value from.
+	 * @param name
+	 *            Name of parameter.
+	 * @throws IllegalArgumentException
+	 * 			  String does not contain the name of the parameter.
+	 */
 	static String retrieveParam(String line, String name) {
-		int startIndex = line.indexOf(name) + name.length() + 1;
+		int indexOfIdentifier = line.indexOf(name);
+
+		if (indexOfIdentifier < 0)
+			throw new IllegalArgumentException(String.format("Parameter name %s not found", name));
+
+		int startIndex = indexOfIdentifier + name.length() + 1;
 		int endIndex = line.indexOf(" ", startIndex);
 		if (endIndex == -1)
 			endIndex = line.length();
