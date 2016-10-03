@@ -53,13 +53,13 @@ public class SchedulingAlgorithmSimulator {
 		String line = in.nextLine(); // either quantum or first process
 
 		// determine what line represents
-		if (line.indexOf(quantum) > -1) {
+		if (line.indexOf("quantum") > -1) {
 			quantum = Integer.parseInt(retrieveParam(line, "quantum"));
 			line = in.nextLine(); // now move to first process
 		} // postcondition: line represents the first process
 
 		// read processes
-		while (line.indexOf("process") == 0) {
+		while (line.indexOf("process") > -1) {
 			Process p = new Process();
 			p.name = retrieveParam(line, "name");
 			p.arrival = Integer.parseInt(retrieveParam(line, "arrival"));
